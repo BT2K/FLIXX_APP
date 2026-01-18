@@ -3,7 +3,43 @@
 //Check for curent page
 const globalState = {
   currentPage: window.location.pathname,
+  search: {
+    term: '',
+    type: '',
+    page: 1,
+    totalPages: 1,
+  },
+  api: {
+    apiKey: '4cd41e964ccf6d5c0606124a17235e0e',
+    apiUrl: 'https://api.themoviedb.org/3/',
+  },
 };
+
+// Fetch Data from TMDB API
+async function fetchAPIData(endpoint) {
+  const API_KEY = globalState.api.apiKey;
+  const API_URL = globalState.api.apiUrl;
+  showSpinner();
+  const response = await fetch(
+    `${API_URL}${endpoint}?api_key=${API_KEY}&language=en-US`,
+  );
+  const data = await response.json();
+  hideSpinner();
+  return data;
+}
+
+//Make Search Request
+async function searchAPIData() {
+  const API_KEY = globalState.api.apiKey;
+  const API_URL = globalState.api.apiUrl;
+  showSpinner();
+  const response = await fetch(
+    `${API_URL}search/${globalState.search.type}?api_key=${API_KEY}&language=en-US&query=${globalState.search.term}`,
+  );
+  const data = await response.json();
+  hideSpinner();
+  return data;
+}
 
 //Display Slider Movies
 
@@ -43,6 +79,61 @@ function initSwiper() {
       700: { slidesPerView: 3 },
       1200: { slidesPerView: 4 },
     },
+  });
+}
+
+//Search Movies/Shows
+
+async function search() {
+  const querryString = window.location.search;
+  const urlParams = new URLSearchParams(querryString);
+
+  globalState.search.type = urlParams.get('type');
+  globalState.search.term = urlParams.get('search-term');
+
+  if (globalState.search.term !== '' && globalState.search.term !== null) {
+    const { results, total_pages, page } = await searchAPIData();
+    if (results.length === 0) {
+      showAlert('No results found', 'alert-error');
+      return;
+    }
+    displaySearchResults(results);
+    document.getElementById('search-term').value = '';
+  } else {
+    showAlert('Please enter a search term', 'alert-error');
+  }
+}
+
+function displaySearchResults(results) {
+  results.forEach((result) => {
+    const div = document.createElement('div');
+    div.classList.add('card');
+    div.innerHTML = `
+          <a href="${globalState.search.type}-details.html?id=${result.id}">
+
+          ${
+            result.poster_path
+              ? `<img
+              src="https://image.tmdb.org/t/p/w500/${result.poster_path}"
+              class="card-img-top"
+              alt="${globalState.search.type === 'movie' ? result.title : result.name}"
+            />`
+              : `<img
+              src="images/no-image.jpg"
+              class="card-img-top"
+              alt="${globalState.search.type === 'movie' ? result.title : result.name}"
+            />`
+          }
+
+          </a>
+          <div class="card-body">
+            <h5 class="card-title">${globalState.search.type === 'movie' ? result.title : result.name}</h5>
+            <p class="card-text">
+              <small class="text-muted">Release: ${globalState.search.type === 'movie' ? result.release_date : result.first_air_date}</small>
+            </p>
+          </div>
+    `;
+    document.getElementById('search-results').appendChild(div);
   });
 }
 
@@ -245,21 +336,6 @@ async function displayTVShows() {
   });
 }
 
-// Fetch Data from TMDB API
-async function fetchAPIData(endpoint) {
-  //I know that's a big no no when it comes to commercial aps ;)
-  const API_KEY = '4cd41e964ccf6d5c0606124a17235e0e';
-  const API_URL = 'https://api.themoviedb.org/3/';
-
-  showSpinner();
-  const response = await fetch(
-    `${API_URL}${endpoint}?api_key=${API_KEY}&language=en-US`,
-  );
-  const data = await response.json();
-  hideSpinner();
-  return data;
-}
-
 function showSpinner() {
   document.querySelector('.spinner').classList.add('show');
 }
@@ -296,6 +372,16 @@ function displayBackgroundImage(type, path) {
   document.getElementById(`${type}-details`).appendChild(overlayDiv);
 }
 
+//Show Alert
+function showAlert(message, className) {
+  const div = document.createElement('div');
+  div.classList.add('alert', className);
+  div.appendChild(document.createTextNode(message));
+  document.getElementById('alert').appendChild(div);
+
+  setTimeout(() => div.remove(), 3000);
+}
+
 function addCommasToNumber(number) {
   return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
@@ -318,7 +404,7 @@ function init() {
       showDetails();
       break;
     case '/search.html':
-      console.log('Search');
+      search();
       break;
   }
   highlightActiveLink();

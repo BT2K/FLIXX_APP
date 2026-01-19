@@ -340,3 +340,7 @@ section h2 {
 .alert-error {
   background: red;
 }
+
+.term-color {
+  color: var(--color-secondary);
+}
